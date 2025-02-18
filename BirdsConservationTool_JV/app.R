@@ -7,6 +7,10 @@
 #    http://shiny.rstudio.com/
 #
 
+
+# Setting -----------------------------------------------------------------
+
+# Libraries 
 library(shiny)
 library(tidyverse)
 library(shiny)
@@ -19,6 +23,10 @@ library(leaflet)
 library(leaflet.extras)
 library(raster)
 library (rsconnect)
+
+# Working directory 
+setwd("~/Desktop/Birds_Canada/1_JV_science_coordinator/Projects/e-bird/Project_Joint_Ventures_Canada_ebird/BirdsConservationTool_JV")
+
 
 select<-dplyr::select
 
@@ -173,20 +181,20 @@ server <- function(input, output, session) {
     raster_path <- file.path("output_stacked_all_rasters", paste0(raster_name, ".tif"))
     
     raster_data <- raster(raster_path)
-    raster_data_downsampled <- aggregate(raster_data, fact = 2)
+    raster_data_downsampled <- aggregate(raster_data, fact = 4, fun="max")  # Adjust 'fact' as needed max indicate taht he max value will be used, therwise use mean
     
     custom_pal <- function(x) {
       ifelse(x == 0, "darkseagreen1", colorNumeric(c("#FFD700", "#c21807", "#110788"), x, na.color = "transparent")(x))
     }
-    
+
     leaflet() %>%
-      addTiles(urlTemplate = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", options = tileOptions(opacity = 0.7)) %>%
+      addTiles(urlTemplate = "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}", options = tileOptions(opacity = 0.7)) %>%
       addRasterImage(raster_data_downsampled, colors = custom_pal, opacity = 0.6) %>%
-      addLegend(pal = colorNumeric(c("darkseagreen1", "#FFD700", "#c21807", "#110788"), values(raster_data), na.color = "transparent"), 
-                values = values(raster_data_downsampled), title = input$estimate_type) %>%
-      setView(lng = -122.1302, lat =  52.184, zoom = 3) 
-  })
-  
+      addLegend(pal = colorNumeric(c("darkseagreen1", "#FFD700", "#c21807", "#110788"), 
+                                   values(raster_data_downsampled), na.color = "transparent"), 
+                values = values(raster_data_downsampled), title = "null") %>%
+      setView(lng = -122.1302, lat = 52.184, zoom = 4)
+    
   # Download handlers for the images
   output$downloadData1 <- downloadHandler(
     filename = function() {
