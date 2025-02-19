@@ -1,13 +1,3 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
-
 # Setting -----------------------------------------------------------------
 
 # Libraries 
@@ -26,7 +16,6 @@ library (rsconnect)
 
 # Working directory 
 setwd("~/Desktop/Birds_Canada/1_JV_science_coordinator/Projects/e-bird/Project_Joint_Ventures_Canada_ebird/BirdsConservationTool_JV")
-
 
 select<-dplyr::select
 
@@ -52,11 +41,12 @@ ui <- navbarPage("Joint Ventures Conservation Tool.v5", theme = shinytheme("supe
                                                      choices = sort(unique(raw_dataset$bird_group)),
                                                      selected ="all-bird-groups"), 
                                          radioButtons("priority", "JV priority", 
-                                                      choices = list("all-species-priority"="all-species-priority",
+                                                      choices = list("all-species"="all-species-priority",
                                                                      "BC-JV-Priority"="BC-JV-Priority"), 
                                                       selected ="all-species-priority"),
                                          radioButtons("SAR", "Conservation status", 
-                                                      choices = sort(unique(raw_dataset$SAR)),
+                                                      choices = list("all-species"="all-species-conservation",
+                                                                     "SpeciesAtRisk"="SAR"),
                                                       selected ="all-species-conservation"),
                                          radioButtons("seasonal", "Seasonal", 
                                                       choices = list("seasonal"="seasonal",
@@ -177,26 +167,40 @@ server <- function(input, output, session) {
   
   # Leaflet Map Rendering
   output$leafletMap <- renderLeaflet({
+    # Pick the raster file based on input selections
     raster_name <- pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal)
     raster_path <- file.path("output_stacked_all_rasters", paste0(raster_name, ".tif"))
     
+    # Load the raster and downsample it 
     raster_data <- raster(raster_path)
-    raster_data_downsampled <- aggregate(raster_data, fact = 4, fun="max")  # Adjust 'fact' as needed max indicate taht he max value will be used, therwise use mean
+    raster_data_downsampled <- aggregate(raster_data, fact = 4, fun = "max")  # Downsample raster 4 : 12*12 km 
+
+    # Load the geometry shapefile (replace 'path_to_shapefile' with actual path)
+     geometry_path <- file.path("geometry", paste0(input$JV_name, ".shp"))
+    geometry_shape <- st_read(geometry_path)
     
+    # Ensure the shapefile is transformed to WGS 84 (EPSG:4326) for Leaflet
+    if (st_crs(geometry_shape) != st_crs(4326)) {
+      geometry_shape <- st_transform(geometry_shape, crs = 4326)
+    }
+    
+    # Define custom palette function
     custom_pal <- function(x) {
       ifelse(x == 0, "darkseagreen1", colorNumeric(c("#FFD700", "#c21807", "#110788"), x, na.color = "transparent")(x))
     }
-
+    
+    # Create the Leaflet map
     leaflet() %>%
-      addTiles(urlTemplate = "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",  options = tileOptions(opacity = 0.7)) %>%
+      addTiles(urlTemplate = "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}", 
+               options = tileOptions(opacity = 0.7)) %>%
       addRasterImage(raster_data_downsampled, colors = custom_pal, opacity = 0.6) %>%
+      addPolygons(data =  geometry_shape, color = "black", weight = 2, fill = FALSE, opacity = 1) %>%  # Adding shapefile as border
       addLegend(pal = colorNumeric(c("darkseagreen1", "#FFD700", "#c21807", "#110788"), 
                                    values(raster_data_downsampled), na.color = "transparent"), 
                 values = values(raster_data_downsampled), title = "null") %>%
       setView(lng = -122.1302, lat = 52.184, zoom = 4)
-    
   })
-    
+  
   # Download handlers for the images
   output$downloadData1 <- downloadHandler(
     filename = function() {
@@ -212,3 +216,4 @@ server <- function(input, output, session) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+

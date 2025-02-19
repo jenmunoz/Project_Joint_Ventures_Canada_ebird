@@ -11,9 +11,6 @@ library(raster)
 library (rsconnect)
 # 
 
-
-
-
 raster_path<-file.path("/Users/jennymunoz/Desktop/2_Birds_Canada_Contract_2024/Projects/e-bird/new_Testing_shiny_app_birds/output_stacked_all_rasters/PacificBirds_landbirds_BC-JV-Priority_all-species-conservation_breeding_richness.tif")
 raster_path <- file.path("/Users/jennymunoz/Desktop/2_Birds_Canada_Contract_2024/Projects/e-bird/new_Testing_shiny_app_birds/output_stacked_all_rasters/CIJV_waterfowl_no-priority_no-SAR_postbreeding_richness.tif") # # sometimes this can create issues so alternatively use the whole raster path if running into problems
 
@@ -36,13 +33,13 @@ leaflet() %>%
 
 ####
 
-raster_data_downsampled <- aggregate(raster_data, fact = 2)  # Adjust 'fact' as needed
+raster_data_downsampled <- aggregate(raster_data, fact = 12, fun="max")  # Adjust 'fact' as needed
 
 
 # Now plot using leaflet
 leaflet() %>%
   addTiles(urlTemplate = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", options = tileOptions(opacity = 0.7)) %>%
   addRasterImage(raster_data_downsampled, colors = custom_pal, opacity = 0.6) %>%
-  addLegend(pal = colorNumeric(c("darkseagreen1", "#FFD700", "#c21807", "#110788"), values(raster_data_projected), na.color = "transparent"), 
-            values = values(raster_data_projected), title = "null") %>%
+  addLegend(pal = colorNumeric(c("darkseagreen1", "#FFD700", "#c21807", "#110788"), values(raster_data_downsampled), na.color = "transparent"), 
+            values = values(raster_data_downsampled), title = "null") %>%
   setView(lng = -122.1302, lat = 52.184, zoom = 4)
