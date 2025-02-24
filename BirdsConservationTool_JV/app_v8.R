@@ -49,8 +49,8 @@ ui <- navbarPage("Joint Ventures Conservation Tool.v5", theme = shinytheme("supe
                                                                      "SpeciesAtRisk"="SAR"),
                                                       selected ="all-species-conservation"),
                                          radioButtons("seasonal", "Seasonal", 
-                                                      choices = list("seasonal"="seasonal",
-                                                                     "annual"="annual"), 
+                                                      choices = list("Seasonal"="seasonal",
+                                                                     "Annual"="annual"), 
                                                       selected ="seasonal"),
                                          
                                          # 🔹 Dynamic UI output for season selection
@@ -124,9 +124,9 @@ server <- function(input, output, session) {
     } else {
       radioButtons("estimate_type",
                    "Estimate:",
-                   choices = list("richness" = "richness",
-                                  "normalized_mean_relative_abundance" = "normalized mean relative abundance", 
-                                  "percentage_population" = "percentage population"),
+                   choices = list("Richness" = "richness",
+                                  "Mean Relative abundance (Normalized) " = "normalized_mean_relative_abundance", 
+                                  "Percentage population" = "percentage_population"),
                    selected = "richness")
     }
   })
@@ -197,8 +197,8 @@ server <- function(input, output, session) {
       addPolygons(data =  geometry_shape, color = "black", weight = 2, fill = FALSE, opacity = 1) %>%  # Adding shapefile as border
       addLegend(pal = colorNumeric(c("darkseagreen1", "#FFD700", "#c21807", "#110788"), 
                                    values(raster_data_downsampled), na.color = "transparent"), 
-                values = values(raster_data_downsampled), title = "null") %>%
-      setView(lng = -122.1302, lat = 52.184, zoom = 4)
+                values = values(raster_data_downsampled), title = (paste0(input$estimate_type))) %>%
+      setView(lng = -122.1302, lat = 52.184, zoom = 5)
   })
   
   # Download handlers for the images
@@ -207,10 +207,20 @@ server <- function(input, output, session) {
       paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), ".png", sep = "")
     },
     content = function(file) {
-      file.copy(normalizePath(file.path('./maps', paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), '.png', sep = ''))), file)
+      file.copy(normalizePath(file.path("./maps/", paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), '.png', sep = ''))), file)
+    }
+  )
+  # Download handlers for the rasters
+  output$downloadData2 <- downloadHandler(
+    filename = function() {
+      paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), ".tif", sep = "")
+    },
+    content = function(file) {
+      file.copy(normalizePath(file.path("./output_stacked_all_rasters/", paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), '.tif', sep = ''))), file)
     }
   )
 }
+
 
 #shinyApp(ui, server)
 
