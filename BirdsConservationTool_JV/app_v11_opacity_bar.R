@@ -1,3 +1,4 @@
+
 # Setting -----------------------------------------------------------------
 
 # Libraries 
@@ -22,7 +23,6 @@ select<-dplyr::select
 
 getwd()
 raw_dataset<-read.csv("1_species_sorting_attributes_updated_long_format_2025.csv")
-
 
 
 # Define UI for application that draws a histogram
@@ -58,6 +58,9 @@ ui <- navbarPage("Joint Ventures Conservation Tool.v5", theme = shinytheme("supe
                                          
                                          # 🔹 Dynamic UI output for estimate selection
                                          uiOutput("estimate_type_ui"),
+                                         
+                                         # 🔹 Opacity Slider
+                                         sliderInput("opacity", "Opacity", min = 0, max = 1, value = 0.5, step = 0.2),
                                          
                                          tags$head(tags$style(".butt{background-color:#99CCCC;} .butt{color: black;font-style: italic;font-size:12px;}")),
                                          (HTML('</p>_____________________________________</p>')),
@@ -151,20 +154,6 @@ server <- function(input, output, session) {
       )
   })
   
-  # Download handler for the species list
-  output$downloadSpeciesList <- downloadHandler(
-    filename = function() {
-      paste("Species_list_", input$JV_name, input$bird_group, input$priority, input$SAR, input$season, ".csv", sep = "_")
-    },
-    content = function(file) {
-      req(nrow(filtered_data()) > 0)
-      species_list <- filtered_data() %>%
-        dplyr::select(common_name, species_code, scientific_name, bird_group, priority, SAR, season) %>%
-        dplyr::distinct(common_name, scientific_name, bird_group, priority, SAR)
-      write.csv(species_list, file, row.names = FALSE)
-    }
-  )
-  
   # Leaflet Map Rendering
   output$leafletMap <- renderLeaflet({
     # Pick the raster file based on input selections
@@ -173,10 +162,10 @@ server <- function(input, output, session) {
     
     # Load the raster and downsample it 
     raster_data <- raster(raster_path)
-    raster_data_downsampled <- aggregate(raster_data, fact = 1, fun = "max")  # Downsample raster 4 : 12*12 km 
-
-    # Load the geometry shapefile (replace 'path_to_shapefile' with actual path)
-     geometry_path <- file.path("geometry", paste0(input$JV_name, ".shp"))
+    raster_data_downsampled <- aggregate(raster_data, fact = 1, fun = "max")
+    
+    # Load the geometry shapefile
+    geometry_path <- file.path("geometry", paste0(input$JV_name, ".shp"))
     geometry_shape <- st_read(geometry_path)
     
     # Ensure the shapefile is transformed to WGS 84 (EPSG:4326) for Leaflet
@@ -193,37 +182,14 @@ server <- function(input, output, session) {
     leaflet() %>%
       addTiles(urlTemplate = "https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}", 
                options = tileOptions(opacity = 0.7)) %>%
-      addRasterImage(raster_data_downsampled, colors = custom_pal, opacity = 0.3) %>%
-      addPolygons(data =  geometry_shape, color = "black", weight = 2, fill = FALSE, opacity = 1) %>%  # Adding shapefile as border
+      addRasterImage(raster_data_downsampled, colors = custom_pal, opacity = input$opacity) %>%  # 🔹 Opacity is now dynamic
+      addPolygons(data = geometry_shape, color = "black", weight = 2, fill = FALSE, opacity = 1) %>%
       addLegend(pal = colorNumeric(c("darkseagreen1", "#FFD700", "#c21807", "#110788"), 
                                    values(raster_data_downsampled), na.color = "transparent"), 
-                values = values(raster_data_downsampled), title = (paste0(input$estimate_type))) %>%
+                values = values(raster_data_downsampled), title = paste0(input$estimate_type)) %>%
       setView(lng = -122.1302, lat = 52.184, zoom = 5)
   })
-  
-  # Download handlers for the images
-  output$downloadData1 <- downloadHandler(
-    filename = function() {
-      paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), ".png", sep = "")
-    },
-    content = function(file) {
-      file.copy(normalizePath(file.path("./maps/", paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), '.png', sep = ''))), file)
-    }
-  )
-  # Download handlers for the rasters
-  output$downloadData2 <- downloadHandler(
-    filename = function() {
-      paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), ".tif", sep = "")
-    },
-    content = function(file) {
-      file.copy(normalizePath(file.path("./output_stacked_all_rasters/", paste(pickimage(input$JV_name, input$bird_group, input$priority, input$SAR, input$season, input$estimate_type, input$seasonal), '.tif', sep = ''))), file)
-    }
-  )
 }
-
-
-#shinyApp(ui, server)
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
